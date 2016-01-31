@@ -1,0 +1,12 @@
+" Docs
+*.aux
+*.pdf
+*.log
+
+" Build files
+*.o
+*.so
+gif2bmp
+
+" Misc
+*.zip
