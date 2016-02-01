@@ -23,10 +23,11 @@ APP_OBJ_FILES=$(patsubst %.cpp,%.o,$(APP_SRC_FILES))
 all: lib app
 
 lib: $(LIB_OBJ_FILES)
-	$(CXX) $(LIB_CXXFLAGS) -o $(LIB_NAME) $^ $(LIB_LDFLAGS)
+	$(CXX) $(LIB_CXXFLAGS) -o $(LIB_NAME) $(LIB_OBJ_FILES) $(LIB_LDFLAGS)
 
+app: lib
 app: $(APP_OBJ_FILES)
-	$(CXX) $(APP_CXXFLAGS) -o $(APP_NAME) $^ $(APP_LDFLAGS)
+	$(CXX) $(APP_CXXFLAGS) -o $(APP_NAME) $(APP_OBJ_FILES) $(APP_LDFLAGS)
 
 clean:
 	$(RM) $(LIB_OBJ_FILES) $(APP_OBJ_FILES) $(LIB_NAME) $(APP_NAME)
