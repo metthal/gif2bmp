@@ -9,7 +9,9 @@ LIB_NAME=libgif2bmp.so
 LIB_CXXFLAGS=$(CXXFLAGS) -shared
 LIB_LDFLAGS=$(LDFLAGS)
 LIB_SRC_FILES= \
-		   gif2bmp.cpp
+		   gif2bmp.cpp \
+		   gif_decoder.cpp \
+		   data_buffer.cpp
 LIB_OBJ_FILES=$(patsubst %.cpp, %.o, $(LIB_SRC_FILES))
 
 APP_NAME=gif2bmp
