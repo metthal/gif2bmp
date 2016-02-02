@@ -227,6 +227,10 @@ DataValue DataBuffer::readBits(std::size_t offset, std::uint8_t lowBit, std::uin
 	if (offset >= getSize())
 		return DataValue();
 
+	// We don't support this
+	if (bitCount == 0)
+		return DataValue();
+
 	// Read the byte at the offset and shift bits so lowBit is now new LSB
 	std::uint8_t byte = _data[offset];
 	byte >>= lowBit;
@@ -235,7 +239,7 @@ DataValue DataBuffer::readBits(std::size_t offset, std::uint8_t lowBit, std::uin
 	std::uint8_t bitMask = 0;
 	while (bitCount)
 	{
-		bitMask |= (1 << bitCount);
+		bitMask |= (1 << (bitCount - 1));
 		bitCount--;
 	}
 
