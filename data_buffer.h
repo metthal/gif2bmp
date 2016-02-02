@@ -23,6 +23,7 @@ public:
 
 	std::size_t getSize() const;
 
+	bool getBool() const;
 	template <typename T> T getInt() const;
 	std::string getString() const;
 	const std::vector<std::uint8_t>& getBytes() const;

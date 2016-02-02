@@ -54,6 +54,17 @@ std::size_t DataValue::getSize() const
 }
 
 /**
+ * Returns the boolean value of the value. The method takes sizeof(uint64_t)
+ * bytes and checks whether there is at least one bit set to 1.
+ *
+ * @return Boolean value.
+ */
+bool DataValue::getBool() const
+{
+	return getInt<uint64_t>();
+}
+
+/**
  * Returns the value as integer type.
  *
  * @return Integer value.
