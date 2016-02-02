@@ -22,12 +22,16 @@ APP_OBJ_FILES=$(patsubst %.cpp,%.o,$(APP_SRC_FILES))
 
 all: lib app
 
+lib: CXXFLAGS += -fPIC
 lib: $(LIB_OBJ_FILES)
 	$(CXX) $(LIB_CXXFLAGS) -o $(LIB_NAME) $(LIB_OBJ_FILES) $(LIB_LDFLAGS)
 
 app: lib
 app: $(APP_OBJ_FILES)
 	$(CXX) $(APP_CXXFLAGS) -o $(APP_NAME) $(APP_OBJ_FILES) $(APP_LDFLAGS)
+
+debug: CXXFLAGS += -g
+debug: clean all
 
 clean:
 	$(RM) $(LIB_OBJ_FILES) $(APP_OBJ_FILES) $(LIB_NAME) $(APP_NAME)
