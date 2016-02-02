@@ -86,7 +86,7 @@ bool processArgs(const ArgsInfo &argsInfo, tGIF2BMP& convReport)
 	FILE* input = stdin;
 	if (argsInfo.flags & ARGS_INPUT_FILE)
 	{
-		FILE *fi = fopen(argsInfo.inputFileName.c_str(), "r");
+		FILE *fi = fopen(argsInfo.inputFileName.c_str(), "rb");
 		if (fi == nullptr)
 			return false;
 
@@ -97,7 +97,7 @@ bool processArgs(const ArgsInfo &argsInfo, tGIF2BMP& convReport)
 	FILE* output = stdout;
 	if (argsInfo.flags & ARGS_OUTPUT_FILE)
 	{
-		FILE *fo = fopen(argsInfo.outputFileName.c_str(), "w");
+		FILE *fo = fopen(argsInfo.outputFileName.c_str(), "wb");
 		if (fo == nullptr)
 			return false;
 
