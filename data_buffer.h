@@ -21,6 +21,8 @@ public:
 	DataValue(DataValue &&dataValue);
 	~DataValue();
 
+	DataValue& operator =(DataValue &&dataValue);
+
 	std::size_t getSize() const;
 
 	bool getBool() const;
@@ -43,8 +45,11 @@ public:
 	DataBuffer(std::size_t size);
 	DataBuffer(const std::vector<std::uint8_t> &data);
 	DataBuffer(const DataBuffer &dataBuffer);
+	DataBuffer(const DataBuffer &dataBuffer, std::size_t offset, std::size_t count);
 	DataBuffer(DataBuffer &&dataBuffer);
 	~DataBuffer();
+
+	DataBuffer& operator =(DataBuffer &&dataBuffer);
 
 	static DataBuffer createFromFile(FILE *file, std::size_t offset, std::size_t amount);
 

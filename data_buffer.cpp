@@ -43,6 +43,12 @@ DataValue::~DataValue()
 {
 }
 
+DataValue& DataValue::operator =(DataValue &&dataValue)
+{
+	_value = std::move(dataValue._value);
+	return *this;
+}
+
 /**
  * Returns the amount of bytes the value is made of.
  *
@@ -134,12 +140,25 @@ DataBuffer::DataBuffer(const DataBuffer &dataBuffer) : _data(dataBuffer._data)
 {
 }
 
+DataBuffer::DataBuffer(const DataBuffer &dataBuffer, std::size_t offset, std::size_t count)
+{
+	count = offset + count >= dataBuffer.getSize() ? dataBuffer.getSize() - offset : count;
+	_data.reserve(count);
+	std::copy(dataBuffer._data.begin() + offset, dataBuffer._data.begin() + offset + count, std::back_inserter(_data));
+}
+
 DataBuffer::DataBuffer(DataBuffer &&dataBuffer) : _data(std::move(dataBuffer._data))
 {
 }
 
 DataBuffer::~DataBuffer()
 {
+}
+
+DataBuffer& DataBuffer::operator =(DataBuffer &&dataBuffer)
+{
+	_data = std::move(dataBuffer._data);
+	return *this;
 }
 
 /**
