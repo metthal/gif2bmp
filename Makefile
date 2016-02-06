@@ -11,7 +11,8 @@ LIB_LDFLAGS=$(LDFLAGS)
 LIB_SRC_FILES= \
 		   gif2bmp.cpp \
 		   gif_decoder.cpp \
-		   data_buffer.cpp
+		   data_buffer.cpp \
+		   utils.cpp
 LIB_OBJ_FILES=$(patsubst %.cpp, %.o, $(LIB_SRC_FILES))
 
 APP_NAME=gif2bmp
@@ -21,8 +22,7 @@ APP_SRC_FILES= \
 			   main.cpp
 APP_OBJ_FILES=$(patsubst %.cpp,%.o,$(APP_SRC_FILES))
 
-
-all: lib app
+release: lib app
 
 lib: CXXFLAGS += -fPIC
 lib: $(LIB_OBJ_FILES)
@@ -32,8 +32,8 @@ app: lib
 app: $(APP_OBJ_FILES)
 	$(CXX) $(APP_CXXFLAGS) -o $(APP_NAME) $(APP_OBJ_FILES) $(APP_LDFLAGS)
 
-debug: CXXFLAGS += -g
-debug: clean all
+debug: CXXFLAGS += -g -D_DEBUG
+debug: clean lib app
 
 clean:
 	$(RM) $(LIB_OBJ_FILES) $(APP_OBJ_FILES) $(LIB_NAME) $(APP_NAME)

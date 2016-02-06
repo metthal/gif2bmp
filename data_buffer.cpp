@@ -2,6 +2,7 @@
 #include <cstring>
 
 #include "data_buffer.h"
+#include "utils.h"
 
 DataValue::DataValue() : _value()
 {
@@ -162,39 +163,26 @@ DataBuffer& DataBuffer::operator =(DataBuffer &&dataBuffer)
 }
 
 /**
- * Creates new DataBuffer with the contents of file. The position in the file is kept as it is
- * after this method is done.
+ * Creates new DataBuffer with the contents of the whole file.
  *
  * @param file The file to read from.
- * @param offset The physical offset in the file.
- * @param amount Number of bytes to read from file.
  *
  * @return DataBuffer with contents of the file.
  */
-DataBuffer DataBuffer::createFromFile(FILE *file, std::size_t offset, std::size_t amount)
+std::unique_ptr<DataBuffer> DataBuffer::createFromFile(FILE *file)
 {
-	// Store current position in the file and move to the requested offset
-	std::size_t oldPos = ftell(file);
-	fseek(file, offset, SEEK_SET);
+	if (file == nullptr)
+		return nullptr;
 
-	// Read bytes from file
-	std::vector<std::uint8_t> destBuffer;
-	destBuffer.resize(amount);
-	int bytesRead = fread(destBuffer.data(), 1, amount, file);
+	std::size_t size;
+	if (!fileSize(file, size))
+		return nullptr;
 
-	// Check for error or 0 bytes read
-	if (bytesRead <= 0)
-	{
-		fseek(file, oldPos, SEEK_SET);
-		return DataBuffer();
-	}
+	std::vector<std::uint8_t> contents;
+	if (!readFile(file, 0, size, contents))
+		return nullptr;
 
-	// Make sure the buffer is the same size as read data
-	destBuffer.resize(bytesRead);
-
-	// Restore old position in the file
-	fseek(file, oldPos, SEEK_SET);
-	return DataBuffer(destBuffer);
+	return std::make_unique<DataBuffer>(contents);
 }
 
 /**
@@ -205,6 +193,19 @@ DataBuffer DataBuffer::createFromFile(FILE *file, std::size_t offset, std::size_
 std::size_t DataBuffer::getSize() const
 {
 	return _data.size();
+}
+
+/**
+ * Creates the copy of the sub-buffer from the given offset up to given number of bytes.
+ *
+ * @param offset The offset to copy from.
+ * @param amount The number of bytes to copy.
+ *
+ * @return Sub-buffer.
+ */
+DataBuffer DataBuffer::getSubBuffer(std::size_t offset, std::size_t amount) const
+{
+	return DataBuffer(*this, offset, amount);
 }
 
 /**
@@ -232,37 +233,107 @@ DataValue DataBuffer::read(std::size_t offset, std::size_t amount) const
 }
 
 /**
- * Reads the specific bits from the byte at the specified offset.
+ * Reads the specific bits from the byte at the specified offset. Method also
+ * access neighbour elements if bitCount overlaps current byte. No more than
+ * 64 bits are read.
  *
- * @param offset The offset of the byte.
- * @param lowBit The bit from which to start reading. 0 is LSB.
- * @param bitCount The number of bits to read from lowBit.
+ * @param byteOffset The offset of the byte.
+ * @param bitOffset The bit from which to start reading. 0 is LSB.
+ * @param bitCount The number of bits to read.
  *
  * @return DataValue representing the read value.
  */
-DataValue DataBuffer::readBits(std::size_t offset, std::uint8_t lowBit, std::uint8_t bitCount) const
+DataValue DataBuffer::readBits(std::size_t byteOffset, std::uint8_t bitOffset, std::size_t bitCount) const
 {
-	// Check of boundaries
-	if (offset >= getSize())
+	if (byteOffset >= getSize())
 		return DataValue();
 
-	// We don't support this
-	if (bitCount == 0)
+	if (bitOffset >= 8)
 		return DataValue();
 
-	// Read the byte at the offset and shift bits so lowBit is now new LSB
-	std::uint8_t byte = _data[offset];
-	byte >>= lowBit;
+	// We don't read more than 64 bits
+	if (bitCount >= (sizeof(std::uint64_t) * 8))
+		bitCount = 64;
 
-	// We now want bitCount bits from lowBit-th bit, so calculate bitMask to mask out right bits
-	std::uint8_t bitMask = 0;
-	while (bitCount)
+	std::uint8_t currentByte = _data[byteOffset] >> bitOffset;
+	std::size_t bitsWritten = 0;
+	std::uint64_t val = 0;
+	while (bitCount > 0)
 	{
-		bitMask |= (1 << (bitCount - 1));
-		bitCount--;
+		// We take the current byte and mask it out so only required number of bits is taken into account
+		// We then shift it right so it fits right position based on the amount of bits already read
+		val |= static_cast<std::uint64_t>((currentByte & _getBitMask(bitCount))) << bitsWritten;
+
+		// We now need to calculate how many bits we have written
+		// If there is less than 8 bits left, use that count as number of bits we have written
+		// Otherwise, calculate it with formula 8 - bitOffset
+		if (bitCount < 8)
+			bitsWritten += bitCount;
+		else
+			bitsWritten += 8 - bitOffset;
+		bitCount -= bitsWritten;
+
+		byteOffset++;
+		if (byteOffset >= getSize())
+			break;
+
+		currentByte = _data[byteOffset];
 	}
 
-	return DataValue(byte & bitMask);
+	return DataValue(val);
+}
+
+/**
+ * Reads the specific bits from the bit at the specified offset. Method also
+ * access neighbour elements if bitCount overlaps current byte. No more than
+ * 64 bits are read.
+ *
+ * @param bitOffset The bit from which to start reading. 0 is LSB of whole buffer.
+ * @param bitCount The number of bits to read.
+ *
+ * @return DataValue representing the read value.
+ */
+DataValue DataBuffer::readBits(std::size_t bitOffset, std::size_t bitCount) const
+{
+	// Dividing by 8 to get index of the byte
+	std::size_t byteOffset = bitOffset >> 3;
+
+	// Modulo 8 to get bit in byte offset
+	std::uint8_t bitInByteOffset = bitOffset & 7;
+
+	return readBits(byteOffset, bitInByteOffset, bitCount);
+}
+
+std::uint8_t DataBuffer::_getBitMask(std::size_t bitCount)
+{
+	// We don't use breaks in switch intentionally
+	// We first set mask to highest possible (0xFF) and then abuse fall through switch
+	// and set bits 0.
+	// The order of cases is very important!!! Do not change!!!
+	std::uint8_t mask = 0xFF;
+	switch (bitCount)
+	{
+		case 0:
+			mask &= ~0x01;
+		case 1:
+			mask &= ~0x02;
+		case 2:
+			mask &= ~0x04;
+		case 3:
+			mask &= ~0x08;
+		case 4:
+			mask &= ~0x10;
+		case 5:
+			mask &= ~0x20;
+		case 6:
+			mask &= ~0x40;
+		case 7:
+			mask &= ~0x80;
+		default:
+			break;
+	}
+
+	return mask;
 }
 
 /**

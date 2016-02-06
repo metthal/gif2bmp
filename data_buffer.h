@@ -2,6 +2,7 @@
 #define DATA_BUFFER_H
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -51,17 +52,21 @@ public:
 
 	DataBuffer& operator =(DataBuffer &&dataBuffer);
 
-	static DataBuffer createFromFile(FILE *file, std::size_t offset, std::size_t amount);
+	static std::unique_ptr<DataBuffer> createFromFile(FILE *file);
 
 	std::size_t getSize() const;
+	DataBuffer getSubBuffer(std::size_t offset, std::size_t amount) const;
 
 	DataValue read(std::size_t offset, std::size_t amount) const;
-	DataValue readBits(std::size_t offset, std::uint8_t lowBit, std::uint8_t bitCount) const;
+	DataValue readBits(std::size_t byteOffset, std::uint8_t bitOffset, std::size_t bitCount) const;
+	DataValue readBits(std::size_t bitOffset, std::size_t bitCount) const;
 
 	void appendData(const DataBuffer &data);
 	void appendData(const std::vector<std::uint8_t> &data);
 
 private:
+	static std::uint8_t _getBitMask(std::size_t bitCount);
+
 	std::vector<std::uint8_t> _data;
 };
 
