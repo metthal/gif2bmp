@@ -47,7 +47,8 @@ bool GifDecoder::decode()
 	while (nextDataBlock())
 	{
 		print("Block #", blockCounter++);
-		decodeDataBlock();
+		if (!decodeDataBlock())
+			return false;
 	}
 
 	return true;
@@ -63,7 +64,7 @@ bool GifDecoder::nextDataBlock()
 	if (!enoughData(1))
 		return false;
 
-	return (_gifBuffer->read(_decodePos, 1).getInt<std::uint8_t>() != 0x3B);
+	return (_gifBuffer->read(_decodePos, 1).getInt<std::uint8_t>() != BLOCK_ID_TERMINAL);
 }
 
 bool GifDecoder::decodeSignature()

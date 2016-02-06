@@ -9,7 +9,8 @@
 enum BlockId
 {
 	BLOCK_ID_EXTENSION            = 0x21,
-	BLOCK_ID_IMAGE_DESCRIPTOR     = 0x2C
+	BLOCK_ID_IMAGE_DESCRIPTOR     = 0x2C,
+	BLOCK_ID_TERMINAL             = 0x3B
 };
 
 enum ExtensionId
