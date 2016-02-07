@@ -256,9 +256,8 @@ bool GifDecoder::decodeTableBasedImage()
 	const ColorTable* colorTable = currentColorTable();
 	assert(colorTable);
 
-	// We need to increase min. code size in case of color table would not fit 2 more records
-	if (alignDown(colorTable->size() + 2, 1 << (minCodeSize - 1)) > (1u << (minCodeSize - 1)))
-		minCodeSize++;
+	// We need to increase min. code size because code table would not fit 2 more records
+	minCodeSize++;
 
 	DataBuffer decodedData;
 	LzwDecoder lzwDecoder(minCodeSize, colorTable->size(), compressedData);
