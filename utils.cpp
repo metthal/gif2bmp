@@ -63,3 +63,27 @@ bool readFile(FILE* file, std::size_t offset, std::size_t count, std::vector<std
 
 	return true;
 }
+
+bool writeFile(FILE* file, std::size_t offset, const std::vector<std::uint8_t>& data)
+{
+	if (file == nullptr)
+		return false;
+
+	if (fseek(file, offset, SEEK_SET) == -1)
+		return false;
+
+	if (fwrite(data.data(), 1, data.size(), file) != data.size())
+		return false;
+
+	return true;
+}
+
+std::uint64_t alignDown(std::uint64_t value, std::uint64_t alignment)
+{
+	return (value & ~(alignment - 1));
+}
+
+std::uint64_t alignUp(std::uint64_t value, std::uint64_t alignment)
+{
+	return alignDown(value + (alignment - 1), alignment);
+}

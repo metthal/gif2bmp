@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "gif_decoder.h"
+#include "lzw_decoder.h"
 
 #ifdef _DEBUG
 static inline void print()
@@ -22,7 +23,7 @@ template <typename... Args> static inline void print(const Args&.../* args*/)
 }
 #endif
 
-GifDecoder::GifDecoder(FILE *gifFile) : _gifFile(gifFile), _gifBuffer(nullptr), _decodePos(0)
+GifDecoder::GifDecoder(FILE *gifFile) : _gifFile(gifFile), _gifBuffer(nullptr), _decodePos(0), _colorTableStack(), _image(nullptr)
 {
 }
 
@@ -52,6 +53,11 @@ bool GifDecoder::decode()
 	}
 
 	return true;
+}
+
+const Image* GifDecoder::getImage() const
+{
+	return _image.get();
 }
 
 bool GifDecoder::enoughData(std::uint64_t amount)
@@ -109,6 +115,9 @@ bool GifDecoder::decodeLogicalScreenDescriptor()
 		// Global Color Table
 		DataBuffer gct = _gifBuffer->getSubBuffer(_decodePos, gctSize);
 		_decodePos += gctSize;
+
+		if (!newColorTable(gct))
+			return false;
 	}
 
 	return true;
@@ -213,6 +222,9 @@ bool GifDecoder::decodeTableBasedImage()
 		// Local Color Table
 		DataBuffer lct = _gifBuffer->getSubBuffer(_decodePos, lctSize);
 		_decodePos += lctSize;
+
+		if (!newColorTable(lct))
+			return false;
 	}
 
 	// Image Data
@@ -232,7 +244,7 @@ bool GifDecoder::decodeTableBasedImage()
 		DataBuffer dataSubblocks = _gifBuffer->getSubBuffer(_decodePos, dataSize);
 		_decodePos += dataSize;
 
-		compressedData.appendData(dataSubblocks);
+		compressedData.append(dataSubblocks);
 
 		if (!enoughData(1))
 			return false;
@@ -240,7 +252,24 @@ bool GifDecoder::decodeTableBasedImage()
 	}
 
 	print("LZW compressed data with min code ", static_cast<std::uint16_t>(minCodeSize), " and size ", compressedData.getSize());
-	// Run LZW decompression
+
+	const ColorTable* colorTable = currentColorTable();
+	assert(colorTable);
+
+	// We need to increase min. code size in case of color table would not fit 2 more records
+	if (alignDown(colorTable->size() + 2, 1 << (minCodeSize - 1)) > (1u << (minCodeSize - 1)))
+		minCodeSize++;
+
+	DataBuffer decodedData;
+	LzwDecoder lzwDecoder(minCodeSize, colorTable->size(), compressedData);
+	if (!lzwDecoder.decode(decodedData))
+		return false;
+
+	print("LZW decompressed data with size ", decodedData.getSize());
+
+	_image = imageFromIndexBuffer(imageWidth, imageHeight, decodedData);
+
+	popColorTable();
 	return true;
 }
 
@@ -289,4 +318,67 @@ bool GifDecoder::decodeGraphicBlock()
 	}
 
 	return true;
+}
+
+const GifDecoder::ColorTable* GifDecoder::currentColorTable() const
+{
+	if (_colorTableStack.empty())
+		return nullptr;
+
+	return &(_colorTableStack.top());
+}
+
+bool GifDecoder::newColorTable(const DataBuffer& colorTableBuffer)
+{
+	if (colorTableBuffer.getSize() % 3 != 0)
+		return false;
+
+	ColorTable colorTable;
+	for (std::uint16_t i = 0; i < colorTableBuffer.getSize(); i += 3)
+	{
+		Color color;
+		color.red = colorTableBuffer.read(i, 1).getInt<std::uint8_t>();
+		color.green = colorTableBuffer.read(i + 1, 1).getInt<std::uint8_t>();
+		color.blue = colorTableBuffer.read(i + 2, 1).getInt<std::uint8_t>();
+		colorTable.push_back(color);
+	}
+
+	_colorTableStack.push(std::move(colorTable));
+	return true;
+}
+
+void GifDecoder::popColorTable()
+{
+	if (_colorTableStack.empty())
+		return;
+
+	_colorTableStack.pop();
+}
+
+std::unique_ptr<Image> GifDecoder::imageFromIndexBuffer(std::uint16_t width, std::uint16_t height, const DataBuffer& indexBuffer)
+{
+	const ColorTable* colorTable = currentColorTable();
+	if (colorTable == nullptr)
+		return nullptr;
+
+	std::uint32_t pos = 0;
+	std::vector<Image::Pixel> pixels;
+
+	for (const auto& index : indexBuffer.getBuffer())
+	{
+		Image::Pixel pixel;
+		if (pos % width == 0)
+			std::cout << std::endl;
+		pixel.coord.x = pos % width;
+		pixel.coord.y = pos / width;
+		pixel.color = colorTable->at(index);
+		std::cout << "[" << pixel.coord.x << "," << pixel.coord.y << "](" <<
+			(std::uint16_t)pixel.color.red << "," << (std::uint16_t)pixel.color.green << "," << (std::uint16_t)pixel.color.blue
+			<< ") ";
+		pixels.push_back(pixel);
+		pos++;
+	}
+	std::cout << std::endl;
+
+	return std::make_unique<Image>(width, height, pixels);
 }

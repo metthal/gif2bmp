@@ -3,8 +3,11 @@
 
 #include <cstdio>
 #include <memory>
+#include <stack>
 
 #include "data_buffer.h"
+#include "image.h"
+#include "utils.h"
 
 enum BlockId
 {
@@ -24,11 +27,15 @@ enum ExtensionId
 class GifDecoder
 {
 public:
+	using ColorTable = std::vector<Color>;
+
 	GifDecoder() = delete;
 	GifDecoder(FILE *gifFile);
 	~GifDecoder();
 
 	bool decode();
+
+	const Image* getImage() const;
 
 protected:
 	bool enoughData(std::size_t amount);
@@ -40,10 +47,18 @@ protected:
 	bool decodeTableBasedImage();
 	bool decodeGraphicBlock();
 
+	const ColorTable* currentColorTable() const;
+	bool newColorTable(const DataBuffer& colorTableBuffer);
+	void popColorTable();
+
+	std::unique_ptr<Image> imageFromIndexBuffer(std::uint16_t width, std::uint16_t height, const DataBuffer& indexBuffer);
+
 private:
 	FILE *_gifFile;
 	std::unique_ptr<DataBuffer> _gifBuffer;
 	std::size_t _decodePos;
+	std::stack<ColorTable> _colorTableStack;
+	std::unique_ptr<Image> _image;
 };
 
 #endif

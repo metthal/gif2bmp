@@ -53,16 +53,24 @@ public:
 	DataBuffer& operator =(DataBuffer &&dataBuffer);
 
 	static std::unique_ptr<DataBuffer> createFromFile(FILE *file);
+	bool writeToFile(FILE* file);
 
 	std::size_t getSize() const;
+	const std::vector<std::uint8_t>& getBuffer() const;
 	DataBuffer getSubBuffer(std::size_t offset, std::size_t amount) const;
 
 	DataValue read(std::size_t offset, std::size_t amount) const;
 	DataValue readBits(std::size_t byteOffset, std::uint8_t bitOffset, std::size_t bitCount) const;
 	DataValue readBits(std::size_t bitOffset, std::size_t bitCount) const;
 
-	void appendData(const DataBuffer &data);
-	void appendData(const std::vector<std::uint8_t> &data);
+	void write(std::size_t offset, const std::vector<std::uint8_t>& data);
+	void write(std::size_t offset, std::uint8_t byte);
+	void write(std::size_t offset, const DataValue& value);
+
+	void append(const DataBuffer &data);
+	void append(const std::vector<std::uint8_t> &data);
+	void append(std::uint8_t byte);
+	void append(const DataValue& value);
 
 private:
 	static std::uint8_t _getBitMask(std::size_t bitCount);

@@ -185,6 +185,17 @@ std::unique_ptr<DataBuffer> DataBuffer::createFromFile(FILE *file)
 	return std::make_unique<DataBuffer>(contents);
 }
 
+bool DataBuffer::writeToFile(FILE* file)
+{
+	if (file == nullptr)
+		return false;
+
+	if (!writeFile(file, 0, _data))
+		return false;
+
+	return true;
+}
+
 /**
  * Returns the size of the buffer.
  *
@@ -193,6 +204,11 @@ std::unique_ptr<DataBuffer> DataBuffer::createFromFile(FILE *file)
 std::size_t DataBuffer::getSize() const
 {
 	return _data.size();
+}
+
+const std::vector<std::uint8_t>& DataBuffer::getBuffer() const
+{
+	return _data;
 }
 
 /**
@@ -267,17 +283,23 @@ DataValue DataBuffer::readBits(std::size_t byteOffset, std::uint8_t bitOffset, s
 		// We now need to calculate how many bits we have written
 		// If there is less than 8 bits left, use that count as number of bits we have written
 		// Otherwise, calculate it with formula 8 - bitOffset
-		if (bitCount < 8)
+		if (bitOffset + bitCount < 8)
+		{
 			bitsWritten += bitCount;
+			bitCount -= bitCount;
+		}
 		else
+		{
 			bitsWritten += 8 - bitOffset;
-		bitCount -= bitsWritten;
+			bitCount -= 8 - bitOffset;
+		}
 
 		byteOffset++;
 		if (byteOffset >= getSize())
 			break;
 
 		currentByte = _data[byteOffset];
+		bitOffset = 0; // We must set bitOffset to 0 because we will be reading from this offset in all consecutive iterations 
 	}
 
 	return DataValue(val);
@@ -336,14 +358,35 @@ std::uint8_t DataBuffer::_getBitMask(std::size_t bitCount)
 	return mask;
 }
 
+void DataBuffer::write(std::size_t offset, const std::vector<std::uint8_t>& data)
+{
+	if (offset + data.size() - 1 >= getSize())
+		_data.resize(offset + data.size());
+
+	std::copy(data.begin(), data.end(), _data.begin() + offset);
+}
+
+void DataBuffer::write(std::size_t offset, std::uint8_t byte)
+{
+	if (offset >= getSize())
+		_data.resize(offset + 1);
+
+	_data[offset] = byte;
+}
+
+void DataBuffer::write(std::size_t offset, const DataValue& value)
+{
+	write(offset, value.getBytes());
+}
+
 /**
  * Appends another DataBuffer to this DataBuffer.
  *
  * @param data DataBuffer to append.
  */
-void DataBuffer::appendData(const DataBuffer& data)
+void DataBuffer::append(const DataBuffer& data)
 {
-	appendData(data._data);
+	append(data._data);
 }
 
 /**
@@ -351,8 +394,27 @@ void DataBuffer::appendData(const DataBuffer& data)
  *
  * @param data Data to append.
  */
-void DataBuffer::appendData(const std::vector<std::uint8_t> &data)
+void DataBuffer::append(const std::vector<std::uint8_t> &data)
 {
 	std::copy(data.begin(), data.end(), std::back_inserter(_data));
 }
 
+/**
+ * Appends single byte to this DataBuffer.
+ *
+ * @param byte Byte to append.
+ */
+void DataBuffer::append(std::uint8_t byte)
+{
+	_data.push_back(byte);
+}
+
+/**
+ * Appends a value to this DataBuffer.
+ *
+ * @param value Value to append.
+ */
+void DataBuffer::append(const DataValue& value)
+{
+	append(value.getBytes());
+}

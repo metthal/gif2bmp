@@ -4,5 +4,14 @@
 int gif2bmp(tGIF2BMP * /*gif2bmp*/, FILE *inputFile, FILE *outputFile)
 {
 	GifDecoder gifDecoder(inputFile);
-	return gifDecoder.decode() ? 0 : -1;
+	if (!gifDecoder.decode())
+		return -1;
+
+	if (gifDecoder.getImage() == nullptr)
+		return -1;
+
+	if (!gifDecoder.getImage()->saveBmp(outputFile))
+		return -1;
+
+	return 0;
 }
