@@ -366,18 +366,12 @@ std::unique_ptr<Image> GifDecoder::imageFromIndexBuffer(std::uint16_t width, std
 	for (const auto& index : indexBuffer.getBuffer())
 	{
 		Image::Pixel pixel;
-		if (pos % width == 0)
-			std::cout << std::endl;
 		pixel.coord.x = pos % width;
 		pixel.coord.y = pos / width;
 		pixel.color = colorTable->at(index);
-		std::cout << "[" << pixel.coord.x << "," << pixel.coord.y << "](" <<
-			(std::uint16_t)pixel.color.red << "," << (std::uint16_t)pixel.color.green << "," << (std::uint16_t)pixel.color.blue
-			<< ") ";
 		pixels.push_back(pixel);
 		pos++;
 	}
-	std::cout << std::endl;
 
 	return std::make_unique<Image>(width, height, pixels);
 }
