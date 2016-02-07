@@ -34,23 +34,30 @@ bool Image::saveBmp(FILE* outputFile) const
 
 	// Pixel Data
 	std::size_t sizeOfData = 0;
-	for (const auto& pixel : _pixels)
+	// BMP has data written from bottom to top and from left to right
+	// So we need to start from the bottom Y line and from the leftmost X point and start writing
+	for (std::int32_t y = _height - 1; y >= 0; --y)
 	{
-		outputBuffer.append(DataValue(static_cast<std::uint8_t>(pixel.color.blue)));
-		outputBuffer.append(DataValue(static_cast<std::uint8_t>(pixel.color.green)));
-		outputBuffer.append(DataValue(static_cast<std::uint8_t>(pixel.color.red)));
-		sizeOfData += 3;
-
-		// End of scan line
-		// We need to add padding
-		// Scan line needs to be aligned to 4 bytes
-		if (pixel.coord.x + 1 == _width)
+		for (std::int32_t x = 0; x < _width; ++x)
 		{
-			std::uint64_t padding = alignUp(sizeOfData, 4) - sizeOfData;
-			for (std::uint64_t i = 0; i < padding; i++)
-				outputBuffer.append(DataValue(static_cast<std::uint8_t>(0)));
+			const Pixel& pixel = _pixels[(y * _width) + x];
 
-			sizeOfData += padding;
+			outputBuffer.append(DataValue(static_cast<std::uint8_t>(pixel.color.blue)));
+			outputBuffer.append(DataValue(static_cast<std::uint8_t>(pixel.color.green)));
+			outputBuffer.append(DataValue(static_cast<std::uint8_t>(pixel.color.red)));
+			sizeOfData += 3;
+
+			// End of scan line
+			// We need to add padding
+			// Scan line needs to be aligned to 4 bytes
+			if (x + 1 == _width)
+			{
+				std::uint64_t padding = alignUp(sizeOfData, 4) - sizeOfData;
+				for (std::uint64_t i = 0; i < padding; i++)
+					outputBuffer.append(DataValue(static_cast<std::uint8_t>(0)));
+
+				sizeOfData += padding;
+			}
 		}
 	}
 
