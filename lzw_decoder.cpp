@@ -66,7 +66,7 @@ bool LzwDecoder::decode(DataBuffer& decodedData)
 			readPos += codeSize;
 
 			// Code after reset is just read, its value should be in code table, index is written to output and it is remembered as last code
-			codeObj = isInCodeTable(firstCode);
+			codeObj = isInCodeTable(code);
 			if (codeObj == nullptr)
 				return false;
 			decodedData.append(codeObj->data);
