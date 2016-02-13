@@ -207,9 +207,11 @@ bool GifDecoder::decodeTableBasedImage()
 	std::uint16_t imageWidth = imgDesc.read(4, 2).getInt<std::uint16_t>();
 	std::uint16_t imageHeight = imgDesc.read(6, 2).getInt<std::uint16_t>();
 	bool lctPresent = imgDesc.readBits(8, 7, 1).getBool();
+	bool interlaced = imgDesc.readBits(8, 6, 1).getBool();
 	print("X x Y: ", imageX, " x ", imageY);
 	print("Width x Height: ", imageWidth, " x ", imageHeight);
 	print("Uses local color table: ", lctPresent ? "Yes" : "No");
+	print("Interlaced: ", interlaced ? "Yes" : "No");
 
 	if (lctPresent)
 	{
@@ -266,7 +268,7 @@ bool GifDecoder::decodeTableBasedImage()
 
 	print("LZW decompressed data with size ", decodedData.getSize());
 
-	_image = imageFromIndexBuffer(imageWidth, imageHeight, decodedData);
+	_image = imageFromIndexBuffer(imageWidth, imageHeight, interlaced, decodedData);
 
 	popColorTable();
 	return true;
@@ -354,24 +356,47 @@ void GifDecoder::popColorTable()
 	_colorTableStack.pop();
 }
 
-std::unique_ptr<Image> GifDecoder::imageFromIndexBuffer(std::uint16_t width, std::uint16_t height, const DataBuffer& indexBuffer)
+std::unique_ptr<Image> GifDecoder::imageFromIndexBuffer(std::uint16_t width, std::uint16_t height, bool interlaced, const DataBuffer& indexBuffer)
 {
 	const ColorTable* colorTable = currentColorTable();
 	if (colorTable == nullptr)
 		return nullptr;
 
-	std::uint32_t pos = 0;
 	std::vector<Image::Pixel> pixels;
+	pixels.resize(width * height);
+	std::uint64_t pos = 0;
 
-	for (const auto& index : indexBuffer.getBuffer())
+	if (!interlaced)
 	{
-		Image::Pixel pixel;
-		pixel.coord.x = pos % width;
-		pixel.coord.y = pos / width;
-		pixel.color = colorTable->at(index);
-		pixels.push_back(pixel);
-		pos++;
+		loadPixels(pixels, width, height, 0, 1, pos, indexBuffer);
+	}
+	else
+	{
+		// Every 8th row starting with row 0
+		loadPixels(pixels, width, height, 0, 8, pos, indexBuffer);
+		// Every 8th row starting with row 4
+		loadPixels(pixels, width, height, 4, 8, pos, indexBuffer);
+		// Every 4th row starting with row 2
+		loadPixels(pixels, width, height, 2, 4, pos, indexBuffer);
+		// Every 2nd row starting with row 1
+		loadPixels(pixels, width, height, 1, 2, pos, indexBuffer);
 	}
 
 	return std::make_unique<Image>(width, height, pixels);
+}
+
+void GifDecoder::loadPixels(std::vector<Image::Pixel>& pixels, std::uint16_t width, std::uint16_t height, std::uint16_t startRow,
+		std::uint16_t rowStep, std::uint64_t& readPos, const DataBuffer& indexBuffer)
+{
+	for (std::uint16_t y = startRow; y < height; y += rowStep)
+	{
+		for (std::uint16_t x = 0; x < width; ++x)
+		{
+			Image::Pixel pixel;
+			pixel.coord.x = x;
+			pixel.coord.y = y;
+			pixel.color = currentColorTable()->at(indexBuffer.getBuffer()[readPos++]);
+			pixels[y * width + x] = pixel;
+		}
+	}
 }

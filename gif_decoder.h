@@ -51,7 +51,9 @@ protected:
 	bool newColorTable(const DataBuffer& colorTableBuffer);
 	void popColorTable();
 
-	std::unique_ptr<Image> imageFromIndexBuffer(std::uint16_t width, std::uint16_t height, const DataBuffer& indexBuffer);
+	std::unique_ptr<Image> imageFromIndexBuffer(std::uint16_t width, std::uint16_t height, bool interlaced, const DataBuffer& indexBuffer);
+	void loadPixels(std::vector<Image::Pixel>& pixels, std::uint16_t width, std::uint16_t height, std::uint16_t startRow,
+			std::uint16_t rowStep, std::uint64_t& readPos, const DataBuffer& indexBuffer);
 
 private:
 	FILE *_gifFile;
